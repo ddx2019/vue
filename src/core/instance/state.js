@@ -169,32 +169,46 @@ export function getData(data: Function, vm: Component): any {
 
 const computedWatcherOptions = { lazy: true };
 
+/**
+ * @description 在非ssr情况下，获取到computed中每一个属性对应的getter,并为每一个计算属性创建一个对应的watcher
+ * @param {*} vm - 组件实例对象
+ * @param {*} computed - computed选项
+ */
 function initComputed(vm: Component, computed: Object) {
   // $flow-disable-line
   const watchers = (vm._computedWatchers = Object.create(null));
   // computed properties are just getters during SSR
   const isSSR = isServerRendering();
-
+  /**
+   * 遍历computed对象 ，并拿到每一个计算属性(值）对应的getter方法(该值本身就是一个get方法，或者该值是一个对象，该对象上包含get方法)，
+   * 若取不到getter，则开发环境下抛出警告
+   */
   for (const key in computed) {
     const userDef = computed[key];
     const getter = typeof userDef === "function" ? userDef : userDef.get;
     if (process.env.NODE_ENV !== "production" && getter == null) {
       warn(`Getter is missing for computed property "${key}".`, vm);
     }
-
+    /**
+     * 非ssr的条件下，为每一个computed的 getter 创建一个 computed watcher
+     */
     if (!isSSR) {
       // create internal watcher for the computed property.
       watchers[key] = new Watcher(
         vm,
         getter || noop,
         noop,
-        computedWatcherOptions
+        computedWatcherOptions //给computed属性做一个标记
       );
     }
 
     // component-defined computed properties are already defined on the
     // component prototype. We only need to define computed properties defined
     // at instantiation here.
+    /**
+     * 如果计算属性中的键名是实例对象vm的属性（即该属性可能 在实例对象的data或者props中已经被定义过了，则会在开发环境下报警告）
+     * 如果计算属性中的键 ，key 不是 实例对象vm 的属性，即计算属性命名合格，则去调用defineComputed方法
+     */
     if (!(key in vm)) {
       defineComputed(vm, key, userDef);
     } else if (process.env.NODE_ENV !== "production") {
@@ -215,11 +229,18 @@ function initComputed(vm: Component, computed: Object) {
   }
 }
 
+/**
+ * @description 利用Object.defineProperty 给计算属性对应的 key 值添加 getter 和 setter
+ * @param {*} target - 实例对象
+ * @param {*} key - computed的键名key
+ * @param {Object|Function} userDef - computed的键名对应的值，
+ */
 export function defineComputed(
   target: any,
   key: string,
   userDef: Object | Function
 ) {
+  
   const shouldCache = !isServerRendering();
   if (typeof userDef === "function") {
     sharedPropertyDefinition.get = shouldCache
@@ -245,6 +266,7 @@ export function defineComputed(
       );
     };
   }
+  // 第三个参数：sharedPropertyDefinition表示 要定义或修改的属性描述符。 是一个对象， 含可枚举和可配置(属性描述可以被改变)属性，且有get和set方法
   Object.defineProperty(target, key, sharedPropertyDefinition);
 }
 
@@ -334,6 +356,7 @@ export function stateMixin(Vue: Class<Component>) {
   // flow somehow has problems with directly declared definition object
   // when using Object.defineProperty, so we have to procedurally build up
   // the object here.
+  // 在Vue的原型上定义两个只读属性，$data和$props
   const dataDef = {};
   dataDef.get = function () {
     return this._data;

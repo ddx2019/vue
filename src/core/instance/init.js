@@ -51,7 +51,8 @@ export function initMixin(Vue: Class<Component>) {
     }
     /* istanbul ignore else */
     /*
-    对vm实例设置一层代理，为vue在模板渲染时进行一层数据筛选
+    通过ES6的Proxy给vm实例设置一层代理(做一层拦截)，主要作用是为vue在模板渲染时进行一层数据筛选,
+    给开发环境下一些不合理的配置做出一些自定义的警告.
     在开发环境下调用initProxy方法，并将vm作为参数传入
     在生产环境下，vm._renderProxy则是vm本身；
     */
@@ -60,16 +61,16 @@ export function initMixin(Vue: Class<Component>) {
     } else {
       vm._renderProxy = vm;
     }
-    // expose real self 初始化生命周期，初始化事件中心，初始化渲染，初始化data、props、computed、watcher
+    // expose real self 初始化生命周期，初始化事件中心，初始化渲染，初始化data、props、computed、watch，methods等属性，初始化provide，inject
     vm._self = vm;
     initLifecycle(vm); //初始化生命周期
     initEvents(vm); //初始化事件中心
     initRender(vm); //初始化渲染
-    callHook(vm, "beforeCreate");
-    initInjections(vm); // resolve injections before data/props
-    initState(vm); // 初始化data、props、computed、methods、watcher
-    initProvide(vm); // resolve provide after data/props
-    callHook(vm, "created");
+    callHook(vm, "beforeCreate"); //触发beforeCreate钩子函数
+    initInjections(vm); // resolve injections before data/props  在data/props之前初始化inject
+    initState(vm); // 初始化data、props、computed、methods、watch
+    initProvide(vm); // resolve provide after data/props 在data/props之前初始化provide
+    callHook(vm, "created"); //触发created钩子函数
 
     /* istanbul ignore if */
     if (process.env.NODE_ENV !== "production" && config.performance && mark) {

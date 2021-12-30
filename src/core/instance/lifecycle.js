@@ -28,10 +28,16 @@ export function setActiveInstance(vm: Component) {
     activeInstance = prevActiveInstance;
   };
 }
-
+/**
+ * @description 初始化生命周期
+ * @param {Component} vm - 实例对象
+ */
 export function initLifecycle(vm: Component) {
+  /**
+   *  从实例的$options属性上 找到最上层非抽象父组件 （组件是对象形式，且有一个abstract属性，值为true，则为抽象组件）
+   * <keep-alive> 是一个抽象组件：它自身不会渲染一个 DOM 元素，也不会出现在组件的父组件链中。
+   */
   const options = vm.$options;
-
   // locate first non-abstract parent
   let parent = options.parent;
   if (parent && !options.abstract) {
@@ -44,8 +50,20 @@ export function initLifecycle(vm: Component) {
   vm.$parent = parent;
   vm.$root = parent ? parent.$root : vm;
 
+  /**
+   * 初始化$children和$refs属性
+   * vm.$children是子组件的数组
+   * vm.$refs是指定引用名称的组件对象
+   */
   vm.$children = [];
   vm.$refs = {};
+
+  /**
+   * 初始化一些标志，用于判断是否已经执行完某种钩子
+   * _inactive和_directInactive是判断激活状态的属性；
+   * activated(组件被激活时会被调用) 和 deactivated(切换到其他组件的时候被调用)
+   * 这两个特殊钩子是在使用 keep-alive 组件的时候才有效。
+   */
 
   vm._watcher = null;
   vm._inactive = null;
@@ -54,7 +72,10 @@ export function initLifecycle(vm: Component) {
   vm._isDestroyed = false;
   vm._isBeingDestroyed = false;
 }
-
+/**
+ * @description 在Vue.prototype上 添加 _update()， $forceUpdate() 和 $destroy 方法
+ * @param {*} Vue
+ */
 export function lifecycleMixin(Vue: Class<Component>) {
   Vue.prototype._update = function (vnode: VNode, hydrating?: boolean) {
     const vm: Component = this;
@@ -358,19 +379,51 @@ export function deactivateChildComponent(vm: Component, direct?: boolean) {
     callHook(vm, "deactivated");
   }
 }
-
+/**
+ * @description 触发函数钩子，调用某个生命周期钩子注册的所有回调函数
+ * @param {*} vm - vue实例
+ * @param {*} hook - 钩子函数名,key
+ * vm.$options[hook] 值，取到的是一个回调函数数组,
+ */
 export function callHook(vm: Component, hook: string) {
   // #7573 disable dep collection when invoking lifecycle hooks
-  pushTarget();
-  const handlers = vm.$options[hook];
+  pushTarget(); //调用生命周期钩子时禁用dep集合，注意这里没传参，
+  const handlers = vm.$options[hook]; //根据钩子函数名拿到钩子函数集(callback数组)
   const info = `${hook} hook`;
   if (handlers) {
+    // 遍历callback数组并通过invokeWithErrorHandling触发回调函数(执行钩子函数)
     for (let i = 0, j = handlers.length; i < j; i++) {
       invokeWithErrorHandling(handlers[i], vm, null, vm, info);
     }
   }
+  /**
+   * 事件相关 instance/events.js中,设置vm._hasHookEvent
+   * initEvents()初始化事件函数中赋值为 false
+   * eventsMixin()中定义的$on中，会据条件设置为true
+   * 当_hasHookEvent属性为真，组件会触发对应的生命周期钩子函数，
+   * 利用这个功能可以：监听子组件生命周期和监听组件自身生命周期
+   * 在template模板中，我们可以使用@hook:xxx的形式来监听子组件对应的生命周期：
+   * 如父组件A.vue内容如下，则子组件一旦挂载完(子组件触发自己的mounted钩子函数),就会执行我们提供的doSomething这个回调函数，
+   * 即我们此时在父组件监听到了子组件的mounted这个生命周期。
+   * <template>
+   *  <div class="father">
+   *   <my-child @hook:mounted="doSomething"></my-child>
+   *  </div>
+   * </template>
+   * <script>
+   * export default {
+   *  methods:{
+   *    doSomething(){
+   *      console.log(666)
+   *    }
+   *  }
+   * }
+   * </script>
+   *
+   */
+
   if (vm._hasHookEvent) {
-    vm.$emit("hook:" + hook);
+    vm.$emit("hook:" + hook); //触发 @hook:xxx 形式绑定的函数
   }
   popTarget();
 }

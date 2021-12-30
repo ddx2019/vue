@@ -27,7 +27,7 @@ function Vue(options) {
   this._init(options); // 调用该方法进行初始化操作
 }
 
-//  这些 xxxMixin都是给Vue的prototype上扩展一些方法；
+//  这些 xxxMixin都是给Vue的prototype上挂载一些属性和方法；
 initMixin(Vue); // 定义_init()方法,并在_init中完成具体模块的初始化，如初始化了生命周期以及事件等等。
 stateMixin(Vue); // 定义了$data，$props,$set(),$delete(),$watch()等方法和属性
 eventsMixin(Vue); // 定义事件相关的方法，$on()，$emit(),$once(),$off()等
